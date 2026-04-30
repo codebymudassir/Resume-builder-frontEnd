@@ -42,6 +42,37 @@ const extractTextFromFile = (file) => {
   });
 };
 
+// ── Robot Avatar Component ──────────────────────────────────────────────────────
+const RobotAvatar = ({ isSpeaking }) => {
+  return (
+    <div className="relative w-32 h-32 flex items-center justify-center">
+      {/* Head */}
+      <div className="w-24 h-24 bg-gradient-to-br from-slate-200 to-slate-400 rounded-3xl border-4 border-white shadow-inner relative overflow-hidden">
+        {/* Top Bar/Antenna */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-4 bg-slate-500 rounded-full" />
+
+        {/* Eyes Area */}
+        <div className="absolute top-6 left-0 right-0 flex justify-center gap-6 px-4">
+          <div className="w-4 h-4 bg-sky-400 rounded-full shadow-[0_0_8px_rgba(56,189,248,0.8)] animate-pulse" />
+          <div className="w-4 h-4 bg-sky-400 rounded-full shadow-[0_0_8px_rgba(56,189,248,0.8)] animate-pulse" />
+        </div>
+
+        {/* Mouth */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-8 h-1 bg-slate-600 rounded-full transition-all duration-150 ease-in-out"
+          style={{
+            height: isSpeaking ? '12px' : '3px',
+            borderRadius: isSpeaking ? '10px' : '50%',
+            backgroundColor: isSpeaking ? '#0ea5e9' : '#475569'
+          }}
+        />
+      </div>
+
+      {/* Neck/Body shadow */}
+      <div className="absolute bottom-2 w-12 h-4 bg-slate-300 rounded-full blur-sm opacity-50" />
+    </div>
+  );
+};
+
 // ── Score Ring Component ─────────────────────────────────────────────────────
 const ScoreRing = ({ score, isDark }) => {
   const radius = 52;
@@ -467,10 +498,7 @@ const InterviewAgent = () => {
           {/* Alex Interviewer Sidebar */}
           <div className="hidden lg:flex w-80 bg-white border-r flex-col items-center justify-center p-8 gap-6">
             <div className="relative">
-              <div className={`w-40 h-40 rounded-full bg-gradient-to-br from-sky-100 to-indigo-100 flex items-center justify-center border-4 border-white shadow-xl overflow-hidden ${isSpeaking ? 'ring-4 ring-sky-400 ring-opacity-50' : ''}`}>
-                <div className={`absolute inset-0 bg-gradient-to-t from-sky-500/10 to-transparent ${isSpeaking ? 'animate-pulse' : ''}`} />
-                <Bot className={`w-20 h-20 text-sky-500 ${isSpeaking ? 'scale-110' : ''} transition-transform duration-300`} />
-              </div>
+              <RobotAvatar isSpeaking={isSpeaking} />
               {isSpeaking && (
                 <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                   {[1, 2, 3].map(i => (
