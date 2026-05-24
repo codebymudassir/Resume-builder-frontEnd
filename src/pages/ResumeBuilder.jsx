@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { useReactToPrint } from "react-to-print";
 import {
   ArrowLeftIcon,
   Briefcase,
@@ -90,6 +91,11 @@ const ResumeBuilder = () => {
   };
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [removeBackground, setRemoveBackground] = useState(false);
+  const contentRef = useRef();
+  const handlePrint = useReactToPrint({
+    contentRef,
+  });
+
   const sections = [
     { id: "personal", name: "personal Info", icon: User },
     { id: "summary", name: "Summary", icon: FileText },
@@ -135,7 +141,7 @@ const ResumeBuilder = () => {
   }
 
   const DownloadResume = () => {
-    window.print()
+    handlePrint();
   }
   const saveResume = async () => {
     try {
@@ -414,7 +420,7 @@ const ResumeBuilder = () => {
               {/* ... visibility and download buttons ... */}
 
               {/* Wrap ONLY the component you want to print */}
-              <div className="resume-content-to-print">
+              <div className="resume-content-to-print" ref={contentRef}>
                 <ResumePreview
                   data={resumeData}
                   template={resumeData.template}

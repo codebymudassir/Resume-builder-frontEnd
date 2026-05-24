@@ -109,16 +109,7 @@ const ResumePreview = ({ data, template, accentColor, classes = '', isLoading = 
 
       <style>
         {`
-          @page {
-            size: letter;
-            margin: 0;
-          }
 
-          @media print {
-            body {
-              background: white !important;
-            }
-          }
         `}
       </style>
     </div>
