@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import { useDispatch } from 'react-redux'
 import api from './config/api.js'
 import { login, setLoading } from './app/features/authSlice.js'
+import PageNotFound from './pages/PageNotFound.jsx'
 
 // ✅ Lazy load for initial bundle split
 const Home = React.lazy(() => import('./pages/Home.jsx'))
@@ -83,6 +84,9 @@ const App = () => {
           <Route path='/interview-agent' element={<InterviewAgent />} />
         </Routes>
       </Suspense>
+      <Routes>
+        <Route path='/*' element={<PageNotFound />} />
+      </Routes>
     </>
   )
 }
