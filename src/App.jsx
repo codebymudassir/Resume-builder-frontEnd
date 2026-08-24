@@ -84,9 +84,6 @@ const App = () => {
           <Route path='/interview-agent' element={<InterviewAgent />} />
         </Routes>
       </Suspense>
-      <Routes>
-        <Route path='/*' element={<PageNotFound />} />
-      </Routes>
     </>
   )
 }
