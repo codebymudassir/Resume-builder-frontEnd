@@ -1,36 +1,65 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { dummyResumeData } from '../assets/assets';
+import { useReactToPrint } from 'react-to-print';
+import { ArrowLeft, Download } from 'lucide-react';
 import ResumePreview from '../components/ResumePreview';
-import { ArrowLeft } from 'lucide-react';
 import api from '../config/api';
 
 const Preview = () => {
-  const {resumeId} = useParams();
+  const { resumeId } = useParams();
   const [resumeData, setResumeData] = useState(null);
-  const [isLoading,setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const contentRef = useRef(null);
+  const handlePrint = useReactToPrint({
+    contentRef,
+    documentTitle: resumeData?.title || "Resume",
+    pageStyle: `
+      @page { size: A4; margin: 0; }
+      @media print {
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #ffffff !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        body * { visibility: hidden; }
+        .resume-print, .resume-print * { visibility: visible; }
+        .resume-print {
+          position: absolute !important;
+          left: 0; top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          background: #ffffff;
+        }
+        .no-print { display: none !important; }
+      }
+    `,
+  });
 
   const loadResume = async () => {
     try {
-       const {data}  = await api.get('/api/resumes/public/'+resumeId);
-       setResumeData(data);
+      const { data } = await api.get('/api/resumes/public/' + resumeId);
+      setResumeData(data);
     } catch (error) {
-       console.log(error.message);
-    }
-    finally{
+      console.log(error.message);
+    } finally {
       setIsLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
     loadResume();
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isLoading) {
     return (
       <div className='h-screen items-center justify-center flex flex-col gap-4 bg-gray-50'>
-         <div className="w-12 h-12 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin" />
-         <p className="text-gray-500 font-medium animate-pulse">Loading your resume...</p>
+        <div className="w-12 h-12 border-4 border-gray-200 border-t-indigo-600 rounded-full animate-spin" />
+        <p className="text-gray-500 font-medium animate-pulse">Loading your resume...</p>
       </div>
     );
   }
@@ -62,17 +91,42 @@ const Preview = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className='mx-auto max-w-3xl py-10 '>
-        <ResumePreview
-          classes='py-4 bg-white'
-          data={resumeData}
-          template={resumeData.template}
-          accentColor={resumeData.accentColor}
-          isLoading={isLoading}
-        />
+      {/* Action bar — hidden in print via the no-print class
+          (the @media print rule in the pageStyle above removes it). */}
+      <div className="no-print sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-200">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-green-600 transition"
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </Link>
+          <button
+            onClick={() => handlePrint()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium shadow hover:bg-slate-800 transition active:scale-95"
+          >
+            <Download className="size-4" />
+            Download PDF
+          </button>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-3xl py-6 sm:py-10 px-2 sm:px-4">
+        {/* The resume-print class is what the @media print CSS keys on
+            to make only this region visible when printing. */}
+        <div className="resume-print" ref={contentRef}>
+          <ResumePreview
+            classes="py-4 bg-white"
+            data={resumeData}
+            template={resumeData.template}
+            accentColor={resumeData.accent_color || "#3B82F6"}
+            isLoading={isLoading}
+          />
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default Preview;

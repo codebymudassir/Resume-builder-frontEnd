@@ -56,6 +56,12 @@ const TemplateSelector = ({ SelectedTemplate, onChange }) => {
       name: "Professional",
       previewImage:
         "A high-end, modern two-column layout designed for maximum professionalism and clarity.",
+    },
+    {
+      id: "ats-classic",
+      name: "ATS Classic",
+      previewImage:
+        "Single-column, plain-text layout. Highest compatibility with all ATS systems — recommended for corporate/ATS-driven applications.",
     }
   ];
 

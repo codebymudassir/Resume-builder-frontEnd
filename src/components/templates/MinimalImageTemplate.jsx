@@ -1,10 +1,13 @@
+import React, { useMemo, useEffect } from "react";
 import { Mail, Phone, MapPin, Linkedin, Globe } from "lucide-react";
 
 const MinimalImageTemplate = ({ data, accentColor }) => {
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
-    const [year, month] = dateStr.split("-");
-    return new Date(year, month - 1).toLocaleDateString("en-US", {
+    const [year, month] = String(dateStr).split("-");
+    const m = parseInt(month, 10);
+    if (!year || Number.isNaN(m)) return dateStr;
+    return new Date(Number(year), m - 1).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
     });
@@ -12,12 +15,19 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
 
   const renderDescription = (content, isSummary = false) => {
     if (!content) return null;
-    const items = content.split("\n").filter((item) => item.trim() !== "");
-
+    const items = String(content)
+      .split("\n")
+      .map((line) => line.replace(/^[•\-\*]\s*/, "").trim())
+      .filter((line) => line.length > 0);
+    if (items.length === 0) return null;
     return (
-      <ul className={`list-disc list-inside text-sm text-zinc-700 leading-relaxed space-y-1 ${isSummary ? "list-none ml-0" : ""}`}>
+      <ul
+        className={`list-disc list-inside text-sm text-zinc-700 leading-relaxed space-y-1 ${
+          isSummary ? "list-none ml-0" : ""
+        }`}
+      >
         {items.map((item, index) => (
-          <li key={index} className={isSummary ? "mb-2" : ""}>
+          <li key={index} className={isSummary ? "mb-1" : ""}>
             {item}
           </li>
         ))}
@@ -25,33 +35,46 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
     );
   };
 
+  const shortenUrl = (url) => (url ? url.replace(/^https?:\/\/(www\.)?/, "") : "");
+
+  const imageSrc = useMemo(() => {
+    const img = data?.personal_info?.image;
+    if (!img) return null;
+    if (typeof img === "string") return img;
+    try {
+      return URL.createObjectURL(img);
+    } catch {
+      return null;
+    }
+  }, [data?.personal_info?.image]);
+
+  useEffect(() => {
+    return () => {
+      if (imageSrc && typeof data?.personal_info?.image !== "string") {
+        URL.revokeObjectURL(imageSrc);
+      }
+    };
+  }, [imageSrc, data?.personal_info?.image]);
+
+  const summary = data?.professionalSummary || data?.professional_summary;
+
   return (
     <div className="max-w-5xl mx-auto bg-white text-zinc-800 shadow-lg rounded-lg overflow-hidden">
       {/* Professional Header */}
       <div className="relative bg-gradient-to-r from-slate-800 to-slate-900 px-8 py-8">
         <div className="flex items-center gap-6">
-          {/* Profile Image */}
-          {data.personal_info?.image && typeof data.personal_info.image === "string" ? (
+          {imageSrc && (
             <div className="flex-shrink-0">
               <img
-                src={data.personal_info.image}
+                src={imageSrc}
                 alt="Profile"
                 className="w-28 h-28 object-cover rounded-lg border-4 border-white shadow-xl"
-                style={{ background: accentColor + "70" }}
+                style={{ background: `${accentColor}70` }}
               />
             </div>
-          ) : data.personal_info?.image && typeof data.personal_info.image === "object" ? (
-            <div className="flex-shrink-0">
-              <img
-                src={URL.createObjectURL(data.personal_info.image)}
-                alt="Profile"
-                className="w-28 h-28 object-cover rounded-lg border-4 border-white shadow-xl"
-              />
-            </div>
-          ) : null}
+          )}
 
-          {/* Name & Profession */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h1 className="text-4xl font-bold text-white tracking-tight mb-2">
               {data.personal_info?.full_name || "Your Name"}
             </h1>
@@ -93,14 +116,12 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
                 <a
                   target="_blank"
                   rel="noreferrer"
-                  href={data.personal_info?.linkedin}
-                  className="flex items-start gap-3 hover:opacity-70 transition-opacity"
+                  href={data.personal_info.linkedin}
+                  className="flex items-start gap-3 hover:opacity-70 transition-opacity min-w-0"
                 >
                   <Linkedin size={16} className="flex-shrink-0 mt-0.5" style={{ color: accentColor }} />
                   <span className="text-slate-700 break-all text-xs">
-                    {data.personal_info.linkedin.split("https://www.")[1]
-                      ? data.personal_info.linkedin.split("https://www.")[1]
-                      : data.personal_info.linkedin}
+                    {shortenUrl(data.personal_info.linkedin)}
                   </span>
                 </a>
               )}
@@ -108,14 +129,12 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
                 <a
                   target="_blank"
                   rel="noreferrer"
-                  href={data.personal_info?.website}
-                  className="flex items-start gap-3 hover:opacity-70 transition-opacity"
+                  href={data.personal_info.website}
+                  className="flex items-start gap-3 hover:opacity-70 transition-opacity min-w-0"
                 >
                   <Globe size={16} className="flex-shrink-0 mt-0.5" style={{ color: accentColor }} />
                   <span className="text-slate-700 break-all text-xs">
-                    {data.personal_info.website.split("https://")[1]
-                      ? data.personal_info.website.split("https://")[1]
-                      : data.personal_info.website}
+                    {shortenUrl(data.personal_info.website)}
                   </span>
                 </a>
               )}
@@ -131,11 +150,9 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
               <div className="space-y-5">
                 {data.education.map((edu, index) => (
                   <div key={index} className="space-y-1">
-                    <p className="font-semibold text-slate-900">
+                    <p className="font-bold text-slate-900 text-sm">
                       {edu.degree}
-                    </p>
-                    <p className="text-sm font-medium text-slate-700">
-                      {edu.field}
+                      {edu.field ? ` in ${edu.field}` : ""}
                     </p>
                     <p className="text-xs text-slate-500">
                       {edu.institute}
@@ -169,8 +186,8 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
                 {data.skills.map((skill, index) => (
                   <span
                     key={index}
-                    className="px-3 py-1.5 bg-white text-slate-700 text-xs font-medium rounded-full border border-slate-200 shadow-sm"
-                    style={{ borderColor: accentColor + "40" }}
+                    className="px-3 py-1.5 bg-white text-slate-700 text-xs font-semibold rounded-full border border-slate-200 shadow-sm"
+                    style={{ borderColor: `${accentColor}40` }}
                   >
                     {skill}
                   </span>
@@ -182,41 +199,50 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
 
         {/* Right Content */}
         <main className="col-span-3 p-8 space-y-8">
-          {/* Summary */}
-          {(data.professionalSummary || data.professional_summary) && (
+          {summary && (
             <section>
-              <h2 className="text-lg font-bold uppercase tracking-wide mb-3 pb-2 border-b-2" style={{ color: accentColor, borderColor: accentColor + "30" }}>
+              <h2
+                className="text-base font-bold uppercase tracking-wider mb-3 pb-2 border-b-2"
+                style={{ color: accentColor, borderColor: `${accentColor}30` }}
+              >
                 Professional Summary
               </h2>
               <div className="text-sm text-slate-700 leading-relaxed">
-                {renderDescription(
-                  data.professionalSummary || data.professional_summary
-                )}
+                {renderDescription(summary, true)}
               </div>
             </section>
           )}
 
-          {/* Experience */}
           {data.experience && data.experience.length > 0 && (
             <section>
-              <h2 className="text-lg font-bold uppercase tracking-wide mb-4 pb-2 border-b-2" style={{ color: accentColor, borderColor: accentColor + "30" }}>
-                Experience
+              <h2
+                className="text-base font-bold uppercase tracking-wider mb-4 pb-2 border-b-2"
+                style={{ color: accentColor, borderColor: `${accentColor}30` }}
+              >
+                Work Experience
               </h2>
               <div className="space-y-6">
                 {data.experience.map((exp, index) => (
-                  <div key={index} className="relative pl-4 border-l-2" style={{ borderColor: accentColor + "40" }}>
+                  <div
+                    key={index}
+                    className="relative pl-4 border-l-2"
+                    style={{ borderColor: `${accentColor}40` }}
+                  >
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 mb-2">
-                      <h3 className="font-bold text-slate-900 text-base">
-                        {exp.position}
-                      </h3>
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-sm">
+                          {exp.position}
+                        </h3>
+                        <p className="text-sm font-semibold" style={{ color: accentColor }}>
+                          {exp.company}
+                          {exp.location ? ` | ${exp.location}` : ""}
+                        </p>
+                      </div>
                       <span className="text-xs text-slate-500 whitespace-nowrap">
                         {formatDate(exp.start_date)} -{" "}
                         {exp.is_current ? "Present" : formatDate(exp.end_date)}
                       </span>
                     </div>
-                    <p className="text-sm font-medium mb-3" style={{ color: accentColor }}>
-                      {exp.company}
-                    </p>
                     <div className="text-sm text-slate-700">
                       {renderDescription(exp.description)}
                     </div>
@@ -226,33 +252,36 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
             </section>
           )}
 
-          {/* Projects */}
           {data.projects && data.projects.length > 0 && (
             <section>
-              <h2 className="text-lg font-bold uppercase tracking-wide mb-4 pb-2 border-b-2" style={{ color: accentColor, borderColor: accentColor + "30" }}>
+              <h2
+                className="text-base font-bold uppercase tracking-wider mb-4 pb-2 border-b-2"
+                style={{ color: accentColor, borderColor: `${accentColor}30` }}
+              >
                 Projects
               </h2>
               <div className="space-y-5">
                 {data.projects.map((project, index) => (
                   <div key={index} className="space-y-2">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
-                      <h3 className="text-base font-bold text-slate-900">
+                      <h3 className="text-sm font-bold text-slate-900">
                         {project.name}
                       </h3>
-                      <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-medium w-fit">
-                        {project.type}
-                      </span>
+                      {project.type && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600 font-semibold w-fit">
+                          {project.type}
+                        </span>
+                      )}
                     </div>
                     {project.link && (
                       <a
                         href={project.link}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm inline-flex items-center gap-1 hover:underline"
+                        className="text-xs inline-flex items-center gap-1 hover:underline break-all"
                         style={{ color: accentColor }}
                       >
-                        <Globe size={14} />
-                        {project.link}
+                        {shortenUrl(project.link)}
                       </a>
                     )}
                     <div className="text-sm text-slate-700">
@@ -270,4 +299,3 @@ const MinimalImageTemplate = ({ data, accentColor }) => {
 };
 
 export default MinimalImageTemplate;
-

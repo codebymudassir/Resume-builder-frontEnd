@@ -1,28 +1,42 @@
+import React, { useMemo } from "react";
 import { Mail, Phone, MapPin, Linkedin, Globe } from "lucide-react";
+
 const ModernTemplate = ({ data, accentColor }) => {
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
-    const [year, month] = dateStr.split("-");
-    return new Date(year, month - 1).toLocaleDateString("en-US", {
+    const [year, month] = String(dateStr).split("-");
+    const m = parseInt(month, 10);
+    if (!year || Number.isNaN(m)) return dateStr;
+    return new Date(Number(year), m - 1).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
     });
   };
 
-  // Helper function to convert text with newlines into bullet points
   const renderDescription = (content) => {
     if (!content) return null;
-    // Split the text by new line character (\n) and remove empty lines
-    const items = content.split("\n").filter((item) => item.trim() !== "");
-
+    const items = String(content)
+      .split("\n")
+      .map((line) => line.replace(/^[•\-\*]\s*/, "").trim())
+      .filter((line) => line.length > 0);
+    if (items.length === 0) return null;
     return (
-      <ul className="list-disc pl-5 space-y-1 text-gray-700 leading-relaxed">
+      <ul className="list-disc pl-5 space-y-1 text-gray-700 leading-relaxed text-sm">
         {items.map((item, index) => (
           <li key={index}>{item}</li>
         ))}
       </ul>
     );
   };
+
+  // Strip the protocol & www. prefix from a URL so the value rendered
+  // next to the icon is short and ATS-friendly.
+  const shortenUrl = (url) => {
+    if (!url) return "";
+    return url.replace(/^https?:\/\/(www\.)?/, "");
+  };
+
+  const summary = data?.professionalSummary || data?.professional_summary;
 
   return (
     <div className="max-w-4xl mx-auto bg-white text-gray-800">
@@ -31,28 +45,28 @@ const ModernTemplate = ({ data, accentColor }) => {
         className="p-8 text-white"
         style={{ backgroundColor: accentColor }}
       >
-        <h1 className="text-4xl font-light mb-3">
+        <h1 className="text-4xl font-bold mb-2 tracking-tight">
           {data.personal_info?.full_name || "Your Name"}
         </h1>
-        <p className="uppercase mb-3 text-gray-950 font-medium text-sm tracking-widest">
+        <p className="uppercase mb-4 text-white/80 font-semibold text-xs tracking-widest">
           {data?.personal_info?.profession || "Profession"}
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
           {data.personal_info?.email && (
             <div className="flex items-center gap-2">
-              <Mail className="size-4" />
-              <span>{data.personal_info.email}</span>
+              <Mail className="size-4 flex-shrink-0" />
+              <span className="break-all">{data.personal_info.email}</span>
             </div>
           )}
           {data.personal_info?.phone && (
             <div className="flex items-center gap-2">
-              <Phone className="size-4" />
+              <Phone className="size-4 flex-shrink-0" />
               <span>{data.personal_info.phone}</span>
             </div>
           )}
           {data.personal_info?.location && (
             <div className="flex items-center gap-2">
-              <MapPin className="size-4" />
+              <MapPin className="size-4 flex-shrink-0" />
               <span>{data.personal_info.location}</span>
             </div>
           )}
@@ -60,14 +74,12 @@ const ModernTemplate = ({ data, accentColor }) => {
             <a
               target="_blank"
               rel="noreferrer"
-              href={data.personal_info?.linkedin}
-              className="flex items-center gap-2"
+              href={data.personal_info.linkedin}
+              className="flex items-center gap-2 hover:underline min-w-0"
             >
-              <Linkedin className="size-4" />
+              <Linkedin className="size-4 flex-shrink-0" />
               <span className="break-all text-xs">
-                {data.personal_info.linkedin.split("https://www.")[1]
-                  ? data.personal_info.linkedin.split("https://www.")[1]
-                  : data.personal_info.linkedin}
+                {shortenUrl(data.personal_info.linkedin)}
               </span>
             </a>
           )}
@@ -75,84 +87,70 @@ const ModernTemplate = ({ data, accentColor }) => {
             <a
               target="_blank"
               rel="noreferrer"
-              href={data.personal_info?.website}
-              className="flex items-center gap-2"
+              href={data.personal_info.website}
+              className="flex items-center gap-2 hover:underline min-w-0"
             >
-              <Globe className="size-4" />
+              <Globe className="size-4 flex-shrink-0" />
               <span className="break-all text-xs">
-                {data.personal_info.website.split("https://")[1]
-                  ? data.personal_info.website.split("https://")[1]
-                  : data.personal_info.website}
+                {shortenUrl(data.personal_info.website)}
               </span>
             </a>
           )}
         </div>
       </header>
 
-      <div className="p-8">
+      <div className="p-8 space-y-8">
         {/* Professional Summary */}
-        {(data.professionalSummary || data.professional_summary) && (
-          <section className="mb-6">
+        {summary && (
+          <section>
             <h2
-              className="text-xl font-semibold mb-3"
+              className="text-xl font-bold mb-3 uppercase tracking-wider"
               style={{ color: accentColor }}
             >
-              PROFESSIONAL SUMMARY
+              Professional Summary
             </h2>
-            {/* Updated to use bullet points helper */}
-            <div>
-              {renderDescription(
-                data.professionalSummary || data.professional_summary
-              )}
+            <div className="text-sm text-gray-700 leading-relaxed">
+              {renderDescription(summary)}
             </div>
           </section>
         )}
 
         {/* Experience */}
         {data.experience && data.experience.length > 0 && (
-          <section className="mb-8">
+          <section>
             <h2
-              className="text-2xl font-light mb-6 pb-2 border-b border-gray-200"
+              className="text-xl font-bold mb-5 pb-2 border-b-2 uppercase tracking-wider"
+              style={{ borderBottomColor: accentColor, color: accentColor }}
             >
-              Experience
+              Work Experience
             </h2>
-
             <div className="space-y-6">
               {data.experience.map((exp, index) => (
-                <div
-                  key={index}
-                  className="relative pl-6 border-l border-gray-200"
+                <div key={index} className="relative pl-6 border-l-2 border-gray-200"
+                  style={{ borderLeftColor: accentColor }}
                 >
-                  <div
-                    className="flex justify-between items-start mb-2"
-                  >
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 mb-2">
                     <div>
-                      <h3
-                        className="text-xl font-medium text-gray-900"
-                      >
+                      <h3 className="text-base font-bold text-gray-900">
                         {exp.position}
                       </h3>
                       <p
-                        className="font-medium"
+                        className="text-sm font-semibold"
                         style={{ color: accentColor }}
                       >
                         {exp.company}
+                        {exp.location ? ` | ${exp.location}` : ""}
                       </p>
                     </div>
-                    <div
-                      className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded"
-                    >
+                    <span className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded whitespace-nowrap self-start">
                       {formatDate(exp.start_date)} -{" "}
                       {exp.is_current
                         ? "Present"
                         : formatDate(exp.end_date)}
-                    </div>
+                    </span>
                   </div>
-                  {/* Updated to use bullet points helper */}
                   {exp.description && (
-                    <div className="mt-2">
-                      {renderDescription(exp.description)}
-                    </div>
+                    <div className="mt-2">{renderDescription(exp.description)}</div>
                   )}
                 </div>
               ))}
@@ -162,56 +160,58 @@ const ModernTemplate = ({ data, accentColor }) => {
 
         {/* Projects */}
         {data.projects && data.projects.length > 0 && (
-          <section className="mb-8">
+          <section>
             <h2
-              className="text-2xl font-light mb-4 pb-2 border-b border-gray-200"
+              className="text-xl font-bold mb-5 pb-2 border-b-2 uppercase tracking-wider"
+              style={{ borderBottomColor: accentColor, color: accentColor }}
             >
               Projects
             </h2>
-
             <div className="space-y-6">
               {data.projects.map((p, index) => (
                 <div
                   key={index}
-                  className="relative pl-6 border-l border-gray-200"
+                  className="relative pl-6 border-l-2"
                   style={{ borderLeftColor: accentColor }}
                 >
-                  <div className="flex justify-between items-start">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 mb-2">
                     <div>
-                      <h3
-                        className="text-lg font-medium text-gray-900"
-                      >
+                      <h3 className="text-base font-bold text-gray-900">
                         {p.name}
                       </h3>
-                      <h3
-                        className="text-lg font-medium"
-                        style={{ color: accentColor }}
-                      >
-                        {p.type}
-                      </h3>
-                       <div className="flex gap-5 text-center items-center ">
-                        <a
-                        href={p.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm mb-1 block"
-                        style={{ color: accentColor }}
-                      >
-                        {p.link}
-                      </a>
-                      <a
-                        href={p.code_link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm border px-2 py-1 rounded-md  mb-1 block"
-                        // style={{ color: accentColor }}
-                      >
-                        Code_link
-                      </a>
-                       </div>
+                      {p.type && (
+                        <p
+                          className="text-sm font-semibold"
+                          style={{ color: accentColor }}
+                        >
+                          {p.type}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-3 mt-1">
+                        {p.link && (
+                          <a
+                            href={p.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs hover:underline"
+                            style={{ color: accentColor }}
+                          >
+                            {shortenUrl(p.link)}
+                          </a>
+                        )}
+                        {p.code_link && (
+                          <a
+                            href={p.code_link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-gray-600 hover:underline"
+                          >
+                            {shortenUrl(p.code_link)}
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  {/* Updated to use bullet points helper */}
                   {p.description && (
                     <div className="mt-2 text-sm">
                       {renderDescription(p.description)}
@@ -223,35 +223,33 @@ const ModernTemplate = ({ data, accentColor }) => {
           </section>
         )}
 
+        {/* Education + Skills two-column */}
         <div className="grid sm:grid-cols-2 gap-8">
-          {/* Education */}
           {data.education && data.education.length > 0 && (
             <section>
               <h2
-                className="text-2xl font-light mb-4 pb-2 border-b border-gray-200"
+                className="text-xl font-bold mb-4 pb-2 border-b-2 uppercase tracking-wider"
+                style={{ borderBottomColor: accentColor, color: accentColor }}
               >
                 Education
               </h2>
-
               <div className="space-y-4">
                 {data.education.map((edu, index) => (
                   <div key={index}>
-                    <h3 className="font-semibold text-gray-900">
-                      {edu.degree} {edu.field && `in ${edu.field}`}
+                    <h3 className="font-bold text-gray-900 text-sm">
+                      {edu.degree}
+                      {edu.field ? ` in ${edu.field}` : ""}
                     </h3>
-                    <p style={{ color: accentColor }}>
+                    <p
+                      className="text-sm font-semibold"
+                      style={{ color: accentColor }}
+                    >
                       {edu.institute}
                     </p>
-                    <div
-                      className="flex justify-between items-center text-sm text-gray-600"
-                    >
+                    <div className="flex flex-wrap justify-between items-center text-xs text-gray-600 mt-1">
                       <span>{formatDate(edu.graduation_date)}</span>
                       {edu.gpa && <span>GPA: {edu.gpa}</span>}
-                      {edu.marks && (
-                        <p className="text-sm text-gray-600">
-                          Marks: {edu.marks}
-                        </p>
-                      )}
+                      {edu.marks && <span>Marks: {edu.marks}</span>}
                     </div>
                   </div>
                 ))}
@@ -259,20 +257,19 @@ const ModernTemplate = ({ data, accentColor }) => {
             </section>
           )}
 
-          {/* Skills */}
           {data.skills && data.skills.length > 0 && (
             <section>
               <h2
-                className="text-2xl font-light mb-4 pb-2 border-b border-gray-200"
+                className="text-xl font-bold mb-4 pb-2 border-b-2 uppercase tracking-wider"
+                style={{ borderBottomColor: accentColor, color: accentColor }}
               >
                 Skills
               </h2>
-
               <div className="flex flex-wrap gap-2">
                 {data.skills.map((skill, index) => (
                   <span
                     key={index}
-                    className="px-3 py-1 text-sm text-white rounded-full"
+                    className="px-3 py-1 text-xs text-white rounded-full font-medium"
                     style={{ backgroundColor: accentColor }}
                   >
                     {skill}
@@ -288,4 +285,3 @@ const ModernTemplate = ({ data, accentColor }) => {
 };
 
 export default ModernTemplate;
-

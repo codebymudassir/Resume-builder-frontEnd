@@ -91,9 +91,33 @@ const ResumeBuilder = () => {
   };
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const [removeBackground, setRemoveBackground] = useState(false);
-  const contentRef = useRef();
+  const contentRef = useRef(null);
   const handlePrint = useReactToPrint({
     contentRef,
+    documentTitle: resumeData?.title || "Resume",
+    pageStyle: `
+      @page { size: A4; margin: 0; }
+      @media print {
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #ffffff !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        body * { visibility: hidden; }
+        .resume-print, .resume-print * { visibility: visible; }
+        .resume-print {
+          position: absolute !important;
+          left: 0; top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          background: #ffffff;
+        }
+        .no-print { display: none !important; }
+      }
+    `,
   });
 
   const sections = [
@@ -141,7 +165,11 @@ const ResumeBuilder = () => {
   }
 
   const DownloadResume = () => {
-    handlePrint();
+    // Make sure the resume data is saved before downloading
+    saveResume().then(() => {
+      // Small delay so React re-renders with the latest data
+      setTimeout(() => handlePrint(), 150);
+    });
   }
   const saveResume = async () => {
     try {
@@ -419,8 +447,11 @@ const ResumeBuilder = () => {
             <div id="resume-print-area" className="lg:col-span-7 max-lg:mt-6">
               {/* ... visibility and download buttons ... */}
 
-              {/* Wrap ONLY the component you want to print */}
-              <div className="resume-content-to-print" ref={contentRef}>
+              {/* Wrap ONLY the component you want to print.
+                  The `resume-print` class is what the @media print
+                  CSS keys on to make only this region visible
+                  (everything else gets visibility: hidden). */}
+              <div className="resume-content-to-print resume-print" ref={contentRef}>
                 <ResumePreview
                   data={resumeData}
                   template={resumeData.template}

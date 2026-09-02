@@ -7,6 +7,7 @@ import ModernCardTemplate from './templates/ModernCardTemplate.jsx';
 import SimpleTemplate from './templates/SimpleTemplate.jsx';
 import ExecutiveProTemplate from './templates/ExecutiveProTemplate.jsx';
 import ProfessionalTemplate from './templates/ProfessionalTemplate.jsx';
+import ATSClassicTemplate from './templates/ATSClassicTemplate.jsx';
 
 const ResumePreview = ({ data, template, accentColor, classes = '', isLoading = false }) => {
 
@@ -26,6 +27,8 @@ const ResumePreview = ({ data, template, accentColor, classes = '', isLoading = 
         return <ProfessionalTemplate data={data} accentColor={accentColor} />;
       case 'simple':
         return <SimpleTemplate data={data} accentColor={accentColor} />;
+      case 'ats-classic':
+        return <ATSClassicTemplate data={data} accentColor={accentColor} />;
       default:
         return <ClassicTemplate data={data} accentColor={accentColor} />;
     }
@@ -92,7 +95,7 @@ const ResumePreview = ({ data, template, accentColor, classes = '', isLoading = 
         <div className={`relative max-w-3xl mx-auto transition-all duration-300 ${
           'bg-white'
         }`}>
-          <div className={`transform transition-transform duration-300 hover:scale-[1.01] text-sm sm:text-base leading-relaxed ${
+          <div className={`transform transition-transform duration-300 text-sm sm:text-base leading-relaxed ${
             'text-gray-900'
           }`}>
             {isLoading ? <ResumeSkeleton /> : renderTamplate()}
@@ -106,12 +109,6 @@ const ResumePreview = ({ data, template, accentColor, classes = '', isLoading = 
           )}
         </div>
       </div>
-
-      <style>
-        {`
-
-        `}
-      </style>
     </div>
   );
 };
