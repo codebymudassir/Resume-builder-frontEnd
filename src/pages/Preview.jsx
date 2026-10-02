@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useReactToPrint } from 'react-to-print';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, Loader2 } from 'lucide-react';
 import ResumePreview from '../components/ResumePreview';
 import api from '../config/api';
 
@@ -9,35 +8,11 @@ const Preview = () => {
   const { resumeId } = useParams();
   const [resumeData, setResumeData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPreparing, setIsPreparing] = useState(false);
 
   const contentRef = useRef(null);
-  const handlePrint = useReactToPrint({
-    contentRef,
-    documentTitle: resumeData?.title || "Resume",
-    pageStyle: `
-      @page { size: A4; margin: 0; }
-      @media print {
-        html, body {
-          margin: 0 !important;
-          padding: 0 !important;
-          background: #ffffff !important;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
-        body * { visibility: hidden; }
-        .resume-print, .resume-print * { visibility: visible; }
-        .resume-print {
-          position: absolute !important;
-          left: 0; top: 0;
-          width: 100%;
-          margin: 0;
-          padding: 0;
-          background: #ffffff;
-        }
-        .no-print { display: none !important; }
-      }
-    `,
-  });
+  const beforePrintHandlerRef = useRef(null);
+  const afterPrintHandlerRef = useRef(null);
 
   const loadResume = async () => {
     try {
@@ -54,6 +29,49 @@ const Preview = () => {
     loadResume();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Native print events — yeh sab se reliable hain.
+  // beforeprint: jab browser print dialog open hone wala ho
+  // afterprint:  jab print dialog band ho jaye (ya cancel ho)
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      setIsPreparing(false); // print dialog khul gaya, loading hatao
+    };
+    const handleAfterPrint = () => {
+      setIsPreparing(false);
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    beforePrintHandlerRef.current = handleBeforePrint;
+    afterPrintHandlerRef.current = handleAfterPrint;
+
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+  }, []);
+
+  // Document title update karo
+  useEffect(() => {
+    if (resumeData?.title) {
+      document.title = resumeData.title;
+    }
+  }, [resumeData]);
+
+  const handleDownloadClick = () => {
+    // Step 1: Loading ON
+    setIsPreparing(true);
+
+    // Step 2: Chhota sa delay taake user ko loading clearly dikhe (UX feel ke liye)
+    setTimeout(() => {
+      // Step 3: Native browser print dialog kholo
+      // Jab yeh line execute hogi, browser 'beforeprint' event fire karega
+      // jis se loading automatically hat jayegi
+      window.print();
+    }, 800);
+  };
 
   if (isLoading) {
     return (
@@ -91,8 +109,18 @@ const Preview = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Action bar — hidden in print via the no-print class
-          (the @media print rule in the pageStyle above removes it). */}
+      {/* Full-screen loading overlay — print dialog khulte hi apne aap hat jayega */}
+      {isPreparing && (
+        <div className="no-print fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-slate-900 rounded-full animate-spin" />
+          <p className="mt-5 text-gray-800 font-semibold animate-pulse text-lg">
+            Preparing your PDF...
+          </p>
+          <p className="mt-1 text-gray-500 text-sm">Opening print dialog</p>
+        </div>
+      )}
+
+      {/* Action bar — print mein hide hota hai */}
       <div className="no-print sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-200">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <Link
@@ -103,18 +131,20 @@ const Preview = () => {
             Back
           </Link>
           <button
-            onClick={() => handlePrint()}
+            onClick={handleDownloadClick}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium shadow hover:bg-slate-800 transition active:scale-95"
           >
-            <Download className="size-4" />
+            {isPreparing ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Download className="size-4" />
+            )}
             Download PDF
           </button>
         </div>
       </div>
 
       <div className="mx-auto max-w-3xl py-6 sm:py-10 px-2 sm:px-4">
-        {/* The resume-print class is what the @media print CSS keys on
-            to make only this region visible when printing. */}
         <div className="resume-print" ref={contentRef}>
           <ResumePreview
             classes="py-4 bg-white"

@@ -1,6 +1,4 @@
 
-
-
 import { Check, Cross, CrossIcon, Palette } from 'lucide-react';
 import React, { useState } from 'react'
 

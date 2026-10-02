@@ -1,13 +1,32 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MessageSquare, Send, X, Bot, Sparkles, Loader2 } from "lucide-react";
-import api from "../config/api.js";
+import { Send, X, Bot, Sparkles, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSelector } from "react-redux";
+import { streamResumeChat } from "../utils/streamResumeChat.js";
 
-const ResumeChatbot = ({ onUpdateResume, currentResume }) => {
+// Shown before the model's reasoning trace starts arriving. Cycling past the
+// end used to leave the bubble frozen on "Almost done..." for the whole wait.
+const FALLBACK_STAGES = [
+  "Thinking...",
+  "Reading your details...",
+  "Planning the layout...",
+  "Writing your summary...",
+  "Structuring experience...",
+  "Polishing bullet points...",
+  "Almost done...",
+];
+const FALLBACK_STAGE_MS = 6000;
+
+// Only the tail of the reasoning trace is shown — the early part is about
+// reading the prompt and the user isn't waiting for that.
+const REASONING_TAIL_CHARS = 260;
+
+const ResumeChatbot = ({ onUpdateResume, currentResume, onLoadingChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [reasoning, setReasoning] = useState("");
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -15,9 +34,10 @@ const ResumeChatbot = ({ onUpdateResume, currentResume }) => {
       text: "Hi! I am your AI Resume Assistant. I can create a resume from scratch or update your existing one. Just tell me what to do!",
     },
   ]);
-  
+
   const { token } = useSelector((state) => state.auth);
   const messagesEndRef = useRef(null);
+  const abortRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -27,58 +47,78 @@ const ResumeChatbot = ({ onUpdateResume, currentResume }) => {
     scrollToBottom();
   }, [messages, isOpen]);
 
+  // Don't leave a request running (and a spinner spinning) after unmount.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   const handleSend = async () => {
     if (!input.trim()) return;
 
     // 1. Add User Message to Chat
     const userMsg = { id: Date.now(), role: "user", text: input };
     setMessages((prev) => [...prev, userMsg]);
-    
+
     const originalInput = input; // Store input for API call
     setInput(""); // Clear input field
     setIsLoading(true);
+    onLoadingChange?.(true);
+    setReasoning("");
+    setElapsedSeconds(0);
+    const ticker = setInterval(() => setElapsedSeconds((e) => e + 1), 1000);
+
+    // Lets the user start a fresh request over a previous one that is stuck.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
-      const response = await api.post(
-        "/api/ai/generate-from-chat", 
-        { userMessage: originalInput, currentResume: currentResume },
-        { headers: { Authorization: token } }
-      );
+      const aiResponse = await streamResumeChat({
+        userMessage: originalInput,
+        currentResume,
+        token,
+        signal: controller.signal,
+        onReasoning: (delta) =>
+          setReasoning((prev) => (prev + delta).slice(-REASONING_TAIL_CHARS)),
+      });
 
-      if (response.data.success) {
-        const aiResponse = response.data.data; // This is the wrapper object
+      // 2. Add AI Text Response to Chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          role: "assistant",
+          text: aiResponse.message, // This will be the specific text or the success message
+        },
+      ]);
 
-        // 2. Add AI Text Response to Chat
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            role: "assistant",
-            text: aiResponse.message, // This will be the specific text or the success message
-          },
-        ]);
-
-        // 3. Logic: If it contained Resume Data, update the form
-        if (aiResponse.responseType === "resume_update" && aiResponse.resumeData) {
-           onUpdateResume(aiResponse.resumeData);
-           toast.success("Resume updated successfully!");
-        }
+      // 3. Logic: If it contained Resume Data, update the form
+      if (aiResponse.responseType === "resume_update" && aiResponse.resumeData) {
+        await onUpdateResume(aiResponse.resumeData);
+        toast.success("Resume updated successfully!");
       }
     } catch (error) {
+      if (error.name === "AbortError") return; // superseded or unmounted
+
       console.error(error);
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now() + 1,
           role: "assistant",
-          text: "Sorry, something went wrong. Please try again.",
+          text: error.message || "Sorry, something went wrong. Please try again.",
         },
       ]);
       toast.error("Failed to process request");
     } finally {
+      clearInterval(ticker);
       setIsLoading(false);
+      setReasoning("");
+      onLoadingChange?.(false);
     }
   };
+
+  const stageText = FALLBACK_STAGES[
+    Math.min(Math.floor(elapsedSeconds * 1000 / FALLBACK_STAGE_MS), FALLBACK_STAGES.length - 1)
+  ];
 
   return (
     <div className="fixed bottom-4 right-6 z-50 flex flex-col items-end">
@@ -116,9 +156,31 @@ const ResumeChatbot = ({ onUpdateResume, currentResume }) => {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-white border border-gray-200 p-3 rounded-2xl rounded-bl-none shadow-sm flex items-center gap-2">
-                  <Loader2 className="size-4 animate-spin text-green-500" />
-                  <span className="text-xs text-gray-500">Thinking...</span>
+                <div className="max-w-[90%] bg-white border border-gray-200 p-3 rounded-2xl rounded-bl-none shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="size-4 shrink-0 animate-spin text-green-500" />
+                    <span className="text-xs text-gray-500">
+                      {reasoning ? "Building your resume..." : stageText}
+                    </span>
+                    <span className="text-[11px] tabular-nums text-gray-400">
+                      {elapsedSeconds}s
+                    </span>
+                  </div>
+
+                  {/* Live trace from the model — proof the request is alive
+                      rather than a spinner that could mean anything. */}
+                  {reasoning && (
+                    <p className="mt-2 border-l-2 border-green-200 pl-2 text-[11px] leading-relaxed text-gray-400 italic whitespace-pre-wrap break-words max-h-24 overflow-y-auto">
+                      {reasoning.trim()}
+                    </p>
+                  )}
+
+                  {/* Past the staged copy, say so rather than looping forever. */}
+                  {elapsedSeconds > 40 && (
+                    <p className="mt-2 text-[11px] text-gray-400">
+                      Large resumes can take a minute — still working.
+                    </p>
+                  )}
                 </div>
               </div>
             )}

@@ -30,6 +30,7 @@ import EducationForm from "../components/EducationForm";
 import ProjectForm from "../components/ProjectForm.jsx";
 import Skills from "../components/Skills.jsx";
 import ResumeChatbot from "../components/ResumeChatbot.jsx";
+import AiResumeLoader from "../components/AiResumeLoader.jsx";
 import api from "../config/api.js";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
@@ -38,6 +39,7 @@ import toast from "react-hot-toast";
 const ResumeBuilder = () => {
   const { resumeId } = useParams();
   const [loading, setLoading] = useState(true);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [resumeData, setResumeData] = useState({
     _id: "",
     title: "",
@@ -444,7 +446,7 @@ const ResumeBuilder = () => {
               </div>
             </div>
 
-            <div id="resume-print-area" className="lg:col-span-7 max-lg:mt-6">
+            <div id="resume-print-area" className="relative lg:col-span-7 max-lg:mt-6">
               {/* ... visibility and download buttons ... */}
 
               {/* Wrap ONLY the component you want to print.
@@ -456,12 +458,16 @@ const ResumeBuilder = () => {
                   data={resumeData}
                   template={resumeData.template}
                   accentColor={resumeData.accent_color}
-                  isLoading={loading}
+                  isLoading={loading || aiGenerating}
                 />
               </div>
+
+              {/* Multi-stage animation shown only while the AI is writing the resume */}
+              <AiResumeLoader visible={aiGenerating} />
             </div>
             <ResumeChatbot onUpdateResume={handleAiResumeUpdate}
               currentResume={resumeData}
+              onLoadingChange={setAiGenerating}
             />
 
             <div className="border border-l-0 border-r-0 flex gap-3 w-full text-black overflow-hidden">
